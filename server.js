@@ -4,12 +4,14 @@ import { Server } from "socket.io";
 import sqlite3 from "sqlite3";
 import { open } from "sqlite";
 import cors from "cors";
-import path from "path"; // Importa 'path'
-import { fileURLToPath } from "url"; // Importa 'fileURLToPath'
+import path from "path";
+import { fileURLToPath } from "url";
 
 // --- SENHA DE ADMIN ---
-// Troque "mudar123" por uma senha sua
 const ADMIN_PASSWORD = "mudar123";
+
+// --- NOVO: CONTROLE DE ESTADO DA LISTA ---
+let isListOpen = true; // Começa aberta por padrão
 
 // --- Função para formatar o nome ---
 function toTitleCase(str) {
@@ -23,82 +25,63 @@ function toTitleCase(str) {
 // --- Configuração base ---
 const app = express();
 const server = http.createServer(app);
-
-// Habilita CORS para todas as origens
 app.use(cors());
-
-// Configura o Socket.io para permitir qualquer origem
-const io = new Server(server, {
-  cors: { origin: "*" },
-});
-
+const io = new Server(server, { cors: { origin: "*" } });
 app.use(express.json());
 
-// --- Configuração para servir arquivos estáticos (o frontend) ---
-// Isso vai fazer sentido na Parte 2, quando criarmos o index.html
+// --- Servir o frontend ---
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-// Estamos dizendo que a pasta 'public' conterá nosso frontend
 app.use(express.static(path.join(__dirname, "public")));
 
 // --- Banco de dados SQLite ---
 let db;
 try {
   db = await open({
-    filename: "./db.sqlite", // O arquivo do banco de dados
+    filename: "./db.sqlite",
     driver: sqlite3.Database,
   });
-
   await db.exec(`
     CREATE TABLE IF NOT EXISTS combinacoes (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      nome TEXT,
-      n1 INTEGER,
-      n2 INTEGER,
-      n3 INTEGER
+      nome TEXT, n1 INTEGER, n2 INTEGER, n3 INTEGER
     )
   `);
-  console.log("Banco de dados conectado e tabela verificada.");
+  console.log("Banco de dados conectado.");
 } catch (e) {
-  console.error("Erro ao abrir o banco de dados:", e);
-  process.exit(1); // Encerra a aplicação se o DB falhar
+  console.error("Erro no DB:", e);
+  process.exit(1);
 }
 
 // --- Rota: buscar combinações ---
 app.get("/combinacoes", async (req, res) => {
-  try {
-    const lista = await db.all("SELECT * FROM combinacoes ORDER BY id DESC");
-    res.json(lista);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
+  const lista = await db.all("SELECT * FROM combinacoes ORDER BY id DESC");
+  res.json(lista);
 });
 
 // --- Rota: adicionar combinação ---
 app.post("/combinacoes", async (req, res) => {
+  // --- MUDANÇA IMPORTANTE ---
+  // 1. Verifica se a lista está aberta
+  if (!isListOpen) {
+    return res.status(403).json({ error: "A lista está fechada." });
+  }
+  // --- FIM DA MUDANÇA ---
+
   try {
     const { nome, n1, n2, n3 } = req.body;
     if (!nome || !n1 || !n2 || !n3) {
       return res.status(400).send("Dados inválidos");
     }
 
-    // await db.run(
-    //   "INSERT INTO combinacoes (nome, n1, n2, n3) VALUES (?, ?, ?, ?)",
-    //   [nome, n1, n2, n3]
-    // );
-
-    // Depois (com o nome limpo e formatado):
-    const nomeFormatado = toTitleCase(nome.trim()); // .trim() remove espaços extras
+    const nomeFormatado = toTitleCase(nome.trim());
     await db.run(
       "INSERT INTO combinacoes (nome, n1, n2, n3) VALUES (?, ?, ?, ?)",
-      [nomeFormatado, n1, n2, n3] // Usa o nome formatado
+      [nomeFormatado, n1, n2, n3]
     );
-    // 👆 FIM DA MUDANÇA
 
-    // Após salvar, busca a lista atualizada e envia para TODOS
     const lista = await db.all("SELECT * FROM combinacoes ORDER BY id DESC");
-    io.emit("update", lista); // A MÁGICA DO SOCKET.IO!
-
+    io.emit("update", lista);
     res.status(201).json({ success: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -109,15 +92,10 @@ app.post("/combinacoes", async (req, res) => {
 app.delete("/combinacoes/:id", async (req, res) => {
   const { adminPassword } = req.body;
   const { id } = req.params;
-
-  if (adminPassword !== ADMIN_PASSWORD) {
-    return res.status(401).send("Senha de admin inválida");
-  }
-
+  if (adminPassword !== ADMIN_PASSWORD)
+    return res.status(401).send("Senha inválida");
   try {
     await db.run("DELETE FROM combinacoes WHERE id = ?", [id]);
-
-    // Atualiza todos os clientes
     const lista = await db.all("SELECT * FROM combinacoes ORDER BY id DESC");
     io.emit("update", lista);
     res.json({ success: true });
@@ -130,19 +108,14 @@ app.delete("/combinacoes/:id", async (req, res) => {
 app.put("/combinacoes/:id", async (req, res) => {
   const { adminPassword, nome, n1, n2, n3 } = req.body;
   const { id } = req.params;
-
-  if (adminPassword !== ADMIN_PASSWORD) {
-    return res.status(401).send("Senha de admin inválida");
-  }
-
+  if (adminPassword !== ADMIN_PASSWORD)
+    return res.status(401).send("Senha inválida");
   try {
     const nomeFormatado = toTitleCase(nome.trim());
     await db.run(
       "UPDATE combinacoes SET nome = ?, n1 = ?, n2 = ?, n3 = ? WHERE id = ?",
       [nomeFormatado, n1, n2, n3, id]
     );
-
-    // Atualiza todos os clientes
     const lista = await db.all("SELECT * FROM combinacoes ORDER BY id DESC");
     io.emit("update", lista);
     res.json({ success: true });
@@ -154,16 +127,10 @@ app.put("/combinacoes/:id", async (req, res) => {
 // --- Rota: LIMPAR TODA A LISTA (ADMIN) ---
 app.delete("/combinacoes/all", async (req, res) => {
   const { adminPassword } = req.body;
-
-  if (adminPassword !== ADMIN_PASSWORD) {
-    return res.status(401).send("Senha de admin inválida");
-  }
-
+  if (adminPassword !== ADMIN_PASSWORD)
+    return res.status(401).send("Senha inválida");
   try {
-    // Deleta TODOS os registros da tabela
     await db.run("DELETE FROM combinacoes");
-
-    // Envia uma lista vazia para todos os clientes
     io.emit("update", []);
     res.json({ success: true, message: "Lista limpa." });
   } catch (e) {
@@ -171,26 +138,40 @@ app.delete("/combinacoes/all", async (req, res) => {
   }
 });
 
-// --- Socket.io: O que fazer quando um novo usuário se conectar ---
+// --- NOVA ROTA: MUDAR STATUS (ADMIN) ---
+app.post("/toggle-status", (req, res) => {
+  const { adminPassword } = req.body;
+  if (adminPassword !== ADMIN_PASSWORD) {
+    return res.status(401).send("Senha de admin inválida");
+  }
+
+  // Inverte o estado
+  isListOpen = !isListOpen;
+  const newStatus = isListOpen ? "open" : "closed";
+
+  // Avisa todos os clientes conectados sobre a mudança
+  io.emit("statusUpdate", newStatus);
+  console.log(`Lista agora está: ${newStatus}`);
+  res.json({ success: true, status: newStatus });
+});
+// --- FIM DA NOVA ROTA ---
+
+// --- Socket.io: conexão em tempo real ---
 io.on("connection", async (socket) => {
   console.log("🟢 Usuário conectado:", socket.id);
 
-  // Envia a lista atual assim que ele se conecta
-  try {
-    const lista = await db.all("SELECT * FROM combinacoes ORDER BY id DESC");
-    socket.emit("update", lista); // Envia SÓ PARA ELE
-  } catch (e) {
-    console.error("Erro ao enviar lista inicial para socket:", e);
-  }
+  // 1. Envia a lista atual
+  const lista = await db.all("SELECT * FROM combinacoes ORDER BY id DESC");
+  socket.emit("update", lista);
 
-  socket.on("disconnect", () => {
-    console.log("🔴 Usuário desconectado:", socket.id);
-  });
+  // --- MUDANÇA: Envia o status atual SÓ para este usuário ---
+  const currentStatus = isListOpen ? "open" : "closed";
+  socket.emit("statusUpdate", currentStatus);
+  // --- FIM DA MUDANÇA ---
 });
 
 // --- Iniciar o servidor ---
-// Vamos usar a porta 3000 como padrão
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`🚀 Servidor rodando em http://localhost:${PORT}`);
+  console.log(`🚀 Servidor rodando na porta ${PORT}`);
 });

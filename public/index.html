@@ -20,6 +20,26 @@
         text-align: center;
         color: #4a4a4a;
       }
+
+      /* --- NOVO CSS (Status) --- */
+      #statusDisplay {
+        text-align: center;
+        font-size: 1.5em;
+        font-weight: bold;
+        margin-bottom: 20px;
+        padding: 10px;
+        border-radius: 8px;
+      }
+      .status-open {
+        color: #218838;
+        background-color: #d4edda;
+      }
+      .status-closed {
+        color: #c82333;
+        background-color: #f8d7da;
+      }
+      /* --- FIM DO NOVO CSS --- */
+
       form {
         display: grid;
         grid-template-columns: 1fr 1fr 1fr;
@@ -39,7 +59,6 @@
         font-size: 16px;
         border: 1px solid #ddd;
         border-radius: 4px;
-        /* Adicionado para os inputs de número não diminuirem */
         min-width: 0;
       }
       button[type="submit"] {
@@ -53,22 +72,53 @@
       button[type="submit"]:hover {
         background: #0056b3;
       }
+
+      /* --- CSS dos Botões de Admin --- */
+      .admin-button-group {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-bottom: 20px;
+      }
+
       #copyButton {
+        grid-column: 1 / -1; /* Ocupa a linha toda */
+        background: #28a745;
+        color: white;
+      }
+
+      /* --- NOVO CSS (Botão Status) --- */
+      #toggleButton {
+        background: #ffc107; /* Amarelo */
+        color: #212529; /* Texto escuro */
+      }
+      #toggleButton:hover {
+        background: #e0a800;
+      }
+
+      #clearButton {
+        background: #dc3545; /* Vermelho */
+        color: white;
+      }
+      #clearButton:hover {
+        background: #c82333;
+      }
+
+      /* Estilo comum para botões de admin */
+      #copyButton,
+      #clearButton,
+      #toggleButton {
         display: block;
         width: 100%;
         padding: 10px;
         font-size: 16px;
         border: none;
         border-radius: 4px;
-        background: #28a745;
-        color: white;
         font-weight: bold;
         cursor: pointer;
-        margin-bottom: 20px;
       }
-      #copyButton:hover {
-        background: #218838;
-      }
+      /* --- FIM DO NOVO CSS --- */
+
       ul {
         list-style: none;
         padding: 0;
@@ -83,7 +133,6 @@
         justify-content: space-between;
         align-items: center;
         font-size: 1.1em;
-        /* Quebra de linha para nomes muito longos */
         word-break: break-word;
       }
       li strong {
@@ -93,12 +142,12 @@
         font-family: monospace, monospace;
         font-size: 1.2em;
         font-weight: bold;
-        padding-left: 10px; /* Garante um espaço */
+        padding-left: 10px;
       }
       .admin-buttons {
         display: flex;
         gap: 8px;
-        padding-left: 10px; /* Garante um espaço */
+        padding-left: 10px;
       }
       .admin-btn {
         background: none;
@@ -150,33 +199,29 @@
         grid-column: 1 / -1;
       }
 
-      /* --- NOVO CSS (Responsivo para Celular) --- */
       @media (max-width: 500px) {
         body {
-          /* Remove a margem e padding laterais */
           margin: 0;
           padding: 10px;
         }
-
-        /* Muda os formulários para 1 coluna */
         form,
         #editForm {
           grid-template-columns: 1fr;
         }
-
         li {
-          /* Permite que o item da lista quebre a linha */
           flex-direction: column;
           align-items: flex-start;
           gap: 10px;
         }
-
         .admin-buttons {
-          /* Coloca os botões de admin no final */
           align-self: flex-end;
         }
+
+        /* Ajusta botões admin para 1 coluna no celular */
+        .admin-button-group {
+          grid-template-columns: 1fr;
+        }
       }
-      /* --- FIM DO NOVO CSS --- */
     </style>
   </head>
   <body>
@@ -184,14 +229,17 @@
 
     <form id="form">
       <input type="text" id="nome" placeholder="Seu nome" required />
-      <input type="number" id="n1" min="1" max="60" placeholder="N1" required />
-      <input type="number" id="n2" min="1" max="60" placeholder="N2" required />
-      <input type="number" id="n3" min="1" max="60" placeholder="N3" required />
+      <input type="number" id="n1" min="1" max="25" placeholder="N1" required />
+      <input type="number" id="n2" min="1" max="25" placeholder="N2" required />
+      <input type="number" id="n3" min="1" max="25" placeholder="N3" required />
       <button type="submit">Salvar</button>
     </form>
 
-    <button id="copyButton">Copiar Lista</button>
-    <button id="clearButton">❌ Limpar Lista (Admin)</button>
+    <div class="admin-button-group">
+      <button id="copyButton">Copiar Lista</button>
+      <button id="toggleButton">Alternar Status (Admin)</button>
+      <button id="clearButton">❌ Limpar Lista (Admin)</button>
+    </div>
     <ul id="lista"></ul>
 
     <div id="editModal" class="modal">
@@ -231,21 +279,42 @@
     </div>
 
     <script>
-      // Lembre de trocar pela sua URL do Railway
-      const backendURL = "http://localhost:3000";
+      const backendURL = "https://meu-novo-projeto-production.up.railway.app"; // Lembre de trocar
 
       let dadosAtuais = [];
+      let currentStatus = "open"; // --- NOVA VARIÁVEL JS (Estado)
+
       const socket = io(backendURL);
       const listaEl = document.getElementById("lista");
       const formEl = document.getElementById("form");
       const copyButton = document.getElementById("copyButton");
-
-      // --- NOVA VARIÁVEL JS (Botão Limpar) ---
       const clearButton = document.getElementById("clearButton");
+      const statusDisplay = document.getElementById("statusDisplay"); // --- NOVA
+      const toggleButton = document.getElementById("toggleButton"); // --- NOVA
 
       const editModal = document.getElementById("editModal");
       const editForm = document.getElementById("editForm");
       const closeModalButton = document.getElementById("closeModalButton");
+
+      // --- NOVO LISTENER (Socket.io de Status) ---
+      socket.on("statusUpdate", (status) => {
+        console.log("Novo status recebido:", status);
+        currentStatus = status; // Salva o estado atual
+        if (status === "open") {
+          statusDisplay.innerText = "LISTA ABERTA ✅";
+          statusDisplay.className = "status-open";
+          // Reabilita o formulário
+          formEl.querySelector("button").disabled = false;
+          formEl.querySelector("button").innerText = "Salvar";
+        } else {
+          statusDisplay.innerText = "LISTA FECHADA ❌";
+          statusDisplay.className = "status-closed";
+          // Desabilita o formulário
+          formEl.querySelector("button").disabled = true;
+          formEl.querySelector("button").innerText = "Lista Fechada";
+        }
+      });
+      // --- FIM DO NOVO LISTENER ---
 
       // --- PARTE A: Receber dados (Socket.io) ---
       socket.on("update", (dados) => {
@@ -281,17 +350,36 @@
       // --- PARTE B: Envio de Formulário (POST) ---
       formEl.addEventListener("submit", async (e) => {
         e.preventDefault();
+
+        // --- VERIFICAÇÃO DE STATUS (Dupla checagem) ---
+        if (currentStatus === "closed") {
+          alert("A lista de combinações está FECHADA no momento.");
+          return; // Para a execução
+        }
+        // --- FIM DA VERIFICAÇÃO ---
+
         const nome = document.getElementById("nome").value;
         const n1 = document.getElementById("n1").value;
         const n2 = document.getElementById("n2").value;
         const n3 = document.getElementById("n3").value;
 
-        await fetch(backendURL + "/combinacoes", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ nome, n1, n2, n3 }),
-        });
-        formEl.reset();
+        try {
+          const res = await fetch(backendURL + "/combinacoes", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ nome, n1, n2, n3 }),
+          });
+
+          if (!res.ok) {
+            // Se o servidor recusar (lista fechada), avisa o usuário
+            const errorData = await res.json();
+            alert(errorData.error || "Não foi possível salvar.");
+          } else {
+            formEl.reset();
+          }
+        } catch (err) {
+          alert("Erro ao conectar com o servidor.");
+        }
       });
 
       // --- PARTE C: Lógica de Copiar ---
@@ -442,6 +530,27 @@
           // para todos automaticamente (não precisamos fazer nada aqui).
         } catch (err) {
           alert("Erro ao limpar a lista.");
+        }
+      });
+
+      // --- NOVA LÓGICA JS (Alternar Status) ---
+      toggleButton.addEventListener("click", async () => {
+        const password = getAdminPassword();
+        if (!password) return;
+
+        try {
+          const res = await fetch(`${backendURL}/toggle-status`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ adminPassword: password }),
+          });
+          if (!res.ok) {
+            alert("Senha incorreta ou erro no servidor.");
+          }
+          // Se der certo, o socket.io vai atualizar o status
+          // para todos automaticamente.
+        } catch (err) {
+          alert("Erro ao alternar status.");
         }
       });
       // --- FIM DA NOVA LÓGICA ---

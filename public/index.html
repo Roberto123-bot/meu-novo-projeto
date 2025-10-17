@@ -54,7 +54,7 @@
         background: #0056b3;
       }
 
-      /* --- NOVO CSS --- (Botão Copiar - Verde) */
+      /* (Botão Copiar - Verde) */
       #copyButton {
         display: block;
         width: 100%;
@@ -71,7 +71,6 @@
       #copyButton:hover {
         background: #218838;
       }
-      /* --- FIM DO NOVO CSS --- */
 
       ul {
         list-style: none;
@@ -109,6 +108,7 @@
     </form>
 
     <button id="copyButton">Copiar Lista</button>
+
     <ul id="lista"></ul>
 
     <script>
@@ -118,23 +118,15 @@
       const backendURL = "https://meu-novo-projeto-production.up.railway.app";
 
       // --- PARTE A: Conexão em Tempo Real (Socket.io) ---
-
-      // --- MUDANÇA JS 1: Variável para guardar os dados ---
       let dadosAtuais = []; // Guarda a lista mais recente aqui
 
       const socket = io(backendURL);
       const listaEl = document.getElementById("lista");
 
-      // Ouve o evento "update" que o servidor envia
       socket.on("update", (dados) => {
         console.log("Recebemos uma atualização!", dados);
-
         dadosAtuais = dados; // Salva os dados recebidos
-
-        // Limpa a lista antiga
         listaEl.innerHTML = "";
-
-        // Cria os novos itens na lista
         dados.forEach((item) => {
           const li = document.createElement("li");
           li.innerHTML = `
@@ -147,7 +139,6 @@
 
       // --- PARTE B: Envio do Formulário (Fetch) ---
       const formEl = document.getElementById("form");
-
       formEl.addEventListener("submit", async (e) => {
         e.preventDefault();
         const nome = document.getElementById("nome").value;
@@ -164,37 +155,52 @@
         formEl.reset();
       });
 
-      // --- NOVO JAVASCRIPT --- (Lógica de Copiar)
+      // --- JAVASCRIPT DE COPIAR (VERSÃO CORRIGIDA) ---
       const copyButton = document.getElementById("copyButton");
 
       copyButton.addEventListener("click", () => {
-        // 1. Define o Título
+        if (dadosAtuais.length === 0) {
+          copyButton.innerText = "Lista vazia!";
+          setTimeout(() => (copyButton.innerText = "Copiar Lista"), 2000);
+          return;
+        }
+
+        // 1. ACHA O NOME MAIS LONGO
+        let maxLength = 0;
+        dadosAtuais.forEach((item) => {
+          if (item.nome.length > maxLength) {
+            maxLength = item.nome.length;
+          }
+        });
+
+        // 2. Define o Título
         const titulo = "Brincadeira das Falhas\n\n";
 
-        // 2. Formata a lista (usando os dados que guardamos)
-        // \t é um "Tab" para dar um espaçamento
+        // 3. Formata a lista (usando padding)
         const listaFormatada = dadosAtuais
-          .map((item) => `${item.nome}:\t${item.n1}, ${item.n2}, ${item.n3}`)
+          .map((item) => {
+            // Adiciona ": " ao nome e preenche com espaços
+            const nomeFormatado = (item.nome + ":").padEnd(maxLength + 4, " ");
+            return `${nomeFormatado}${item.n1}, ${item.n2}, ${item.n3}`;
+          })
           .join("\n"); // Junta cada item com uma quebra de linha
 
         const textoParaCopiar = titulo + listaFormatada;
 
-        // 3. Copia para a área de transferência
+        // 4. Copia para a área de transferência
         navigator.clipboard
           .writeText(textoParaCopiar)
           .then(() => {
-            // Feedback visual
             copyButton.innerText = "Copiado! 👍";
             setTimeout(() => {
               copyButton.innerText = "Copiar Lista";
-            }, 2000); // Volta ao normal depois de 2 segundos
+            }, 2000);
           })
           .catch((err) => {
             console.error("Falha ao copiar texto: ", err);
             copyButton.innerText = "Erro ao copiar";
           });
       });
-      // --- FIM DO NOVO JAVASCRIPT ---
     </script>
   </body>
 </html>

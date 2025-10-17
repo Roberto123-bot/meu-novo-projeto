@@ -245,6 +245,8 @@
 
       // --- PARTE A: Receber dados (Socket.io) ---
       socket.on("update", (dados) => {
+        dados.reverse(); // <<<--- ADICIONE ESTA LINHA
+
         dadosAtuais = dados;
         listaEl.innerHTML = "";
 
@@ -296,7 +298,6 @@
           return;
         }
 
-        // --- TÍTULO E DESCRIÇÃO ATUALIZADOS ---
         const titulo = `(◞ꈍ∇ꈍ)っ🎁 𝙱𝚁𝙸𝙽𝙲𝙰𝙳𝙴𝙸𝚁𝙰𝚂 𝙳𝙰𝚂 𝙵𝙰𝙻𝙷𝙰𝚂 (❛0❛⋆)
 
 🎯𝐀𝐜𝐞𝐫𝐭𝐞 𝟑 𝐝𝐞𝐳𝐞𝐧𝐚𝐬 𝐪𝐮𝐞 𝐧ã𝐨 𝐢𝐫ã𝐨 𝐯𝐢𝐦 𝐧𝐚 𝐥𝐨𝐭𝐨𝐟𝐚𝐜𝐢𝐥 𝐡𝐨𝐣𝐞 𝟑𝟓𝟏𝟓
@@ -304,11 +305,17 @@
 🎁𝐆𝐀𝐍𝐇𝐀 𝟏𝟎𝟎 𝐁𝐈𝐋𝐇𝐄𝐓𝐄𝐒 𝐃𝐀 𝐑𝐈𝐅𝐀 𝐄 𝐌𝐀𝐈𝐒 𝟒 𝐏𝐈𝐗 𝐏𝐄𝐋𝐀 𝐋𝐎𝐓𝐄𝐑𝐈𝐀 𝐅𝐄𝐃𝐄𝐑𝐀𝐋
 
 `;
-        // --- FIM DA ATUALIZAÇÃO ---
 
+        // --- MUDANÇA DA FORMATAÇÃO DA LISTA ---
         const listaFormatada = dadosAtuais
-          .map((item) => `${item.nome}:\t${item.n1}, ${item.n2}, ${item.n3}`)
+          .map((item, index) => {
+            // "index" começa em 0, então adicionamos 1
+            const numero = index + 1;
+            // Adicionamos o número e um ponto antes do nome
+            return `${numero}. ${item.nome}:\t${item.n1}, ${item.n2}, ${item.n3}`;
+          })
           .join("\n");
+        // --- FIM DA MUDANÇA ---
 
         navigator.clipboard.writeText(titulo + listaFormatada).then(() => {
           copyButton.innerText = "Copiado! 👍";

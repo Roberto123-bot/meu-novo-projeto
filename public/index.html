@@ -155,7 +155,7 @@
         formEl.reset();
       });
 
-      // --- JAVASCRIPT DE COPIAR (VERSÃO CORRIGIDA) ---
+      // --- JAVASCRIPT DE COPIAR (VERSÃO ALINHADA COM TAB) ---
       const copyButton = document.getElementById("copyButton");
 
       copyButton.addEventListener("click", () => {
@@ -165,29 +165,20 @@
           return;
         }
 
-        // 1. ACHA O NOME MAIS LONGO
-        let maxLength = 0;
-        dadosAtuais.forEach((item) => {
-          if (item.nome.length > maxLength) {
-            maxLength = item.nome.length;
-          }
-        });
-
-        // 2. Define o Título
+        // 1. Define o Título
         const titulo = "Brincadeira das Falhas\n\n";
 
-        // 3. Formata a lista (usando padding)
+        // 2. Formata a lista (usando \t (Tab) para alinhamento)
         const listaFormatada = dadosAtuais
           .map((item) => {
-            // Adiciona ": " ao nome e preenche com espaços
-            const nomeFormatado = (item.nome + ":").padEnd(maxLength + 4, " ");
-            return `${nomeFormatado}${item.n1}, ${item.n2}, ${item.n3}`;
+            // Simplesmente separamos o nome e os números com um Tab
+            return `${item.nome}:\t${item.n1}, ${item.n2}, ${item.n3}`;
           })
           .join("\n"); // Junta cada item com uma quebra de linha
 
         const textoParaCopiar = titulo + listaFormatada;
 
-        // 4. Copia para a área de transferência
+        // 3. Copia para a área de transferência
         navigator.clipboard
           .writeText(textoParaCopiar)
           .then(() => {

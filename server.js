@@ -7,6 +7,17 @@ import cors from "cors";
 import path from "path"; // Importa 'path'
 import { fileURLToPath } from "url"; // Importa 'fileURLToPath'
 
+// ... logo abaixo dos 'import'
+
+// --- Função para formatar o nome ---
+function toTitleCase(str) {
+  if (!str) return "";
+  return str.replace(
+    /\w\S*/g,
+    (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase()
+  );
+}
+
 // --- Configuração base ---
 const app = express();
 const server = http.createServer(app);
@@ -69,10 +80,18 @@ app.post("/combinacoes", async (req, res) => {
       return res.status(400).send("Dados inválidos");
     }
 
+    // await db.run(
+    //   "INSERT INTO combinacoes (nome, n1, n2, n3) VALUES (?, ?, ?, ?)",
+    //   [nome, n1, n2, n3]
+    // );
+
+    // Depois (com o nome limpo e formatado):
+    const nomeFormatado = toTitleCase(nome.trim()); // .trim() remove espaços extras
     await db.run(
       "INSERT INTO combinacoes (nome, n1, n2, n3) VALUES (?, ?, ?, ?)",
-      [nome, n1, n2, n3]
+      [nomeFormatado, n1, n2, n3] // Usa o nome formatado
     );
+    // 👆 FIM DA MUDANÇA
 
     // Após salvar, busca a lista atualizada e envia para TODOS
     const lista = await db.all("SELECT * FROM combinacoes ORDER BY id DESC");

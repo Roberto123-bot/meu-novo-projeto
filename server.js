@@ -151,6 +151,26 @@ app.put("/combinacoes/:id", async (req, res) => {
   }
 });
 
+// --- Rota: LIMPAR TODA A LISTA (ADMIN) ---
+app.delete("/combinacoes/all", async (req, res) => {
+  const { adminPassword } = req.body;
+
+  if (adminPassword !== ADMIN_PASSWORD) {
+    return res.status(401).send("Senha de admin inválida");
+  }
+
+  try {
+    // Deleta TODOS os registros da tabela
+    await db.run("DELETE FROM combinacoes");
+
+    // Envia uma lista vazia para todos os clientes
+    io.emit("update", []);
+    res.json({ success: true, message: "Lista limpa." });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // --- Socket.io: O que fazer quando um novo usuário se conectar ---
 io.on("connection", async (socket) => {
   console.log("🟢 Usuário conectado:", socket.id);

@@ -191,6 +191,7 @@
     </form>
 
     <button id="copyButton">Copiar Lista</button>
+    <button id="clearButton">❌ Limpar Lista (Admin)</button>
     <ul id="lista"></ul>
 
     <div id="editModal" class="modal">
@@ -231,13 +232,16 @@
 
     <script>
       // Lembre de trocar pela sua URL do Railway
-      const backendURL = "https://meu-novo-projeto-production.up.railway.app";
+      const backendURL = "http://localhost:3000";
 
       let dadosAtuais = [];
       const socket = io(backendURL);
       const listaEl = document.getElementById("lista");
       const formEl = document.getElementById("form");
       const copyButton = document.getElementById("copyButton");
+
+      // --- NOVA VARIÁVEL JS (Botão Limpar) ---
+      const clearButton = document.getElementById("clearButton");
 
       const editModal = document.getElementById("editModal");
       const editForm = document.getElementById("editForm");
@@ -408,6 +412,39 @@
           alert("Erro ao salvar.");
         }
       });
+
+      // --- NOVA LÓGICA JS (Limpar Lista) ---
+      clearButton.addEventListener("click", async () => {
+        // 1. Confirmação Dupla (MUITO IMPORTANTE)
+        if (!confirm("TEM CERTEZA que quer deletar TODA a lista?")) {
+          return;
+        }
+        if (!confirm("Confirmação final. Isso não pode ser desfeito.")) {
+          return;
+        }
+
+        // 2. Pede a senha
+        const password = getAdminPassword(); // Reusa a função
+        if (!password) return;
+
+        // 3. Envia a requisição
+        try {
+          const res = await fetch(`${backendURL}/combinacoes/all`, {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ adminPassword: password }),
+          });
+
+          if (!res.ok) {
+            alert("Senha incorreta ou erro no servidor.");
+          }
+          // Se der certo, o socket.io vai atualizar a lista
+          // para todos automaticamente (não precisamos fazer nada aqui).
+        } catch (err) {
+          alert("Erro ao limpar a lista.");
+        }
+      });
+      // --- FIM DA NOVA LÓGICA ---
     </script>
   </body>
 </html>

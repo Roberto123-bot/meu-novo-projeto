@@ -7,7 +7,9 @@ import cors from "cors";
 import path from "path"; // Importa 'path'
 import { fileURLToPath } from "url"; // Importa 'fileURLToPath'
 
-// ... logo abaixo dos 'import'
+// --- SENHA DE ADMIN ---
+// Troque "mudar123" por uma senha sua
+const ADMIN_PASSWORD = "mudar123";
 
 // --- Função para formatar o nome ---
 function toTitleCase(str) {
@@ -98,6 +100,52 @@ app.post("/combinacoes", async (req, res) => {
     io.emit("update", lista); // A MÁGICA DO SOCKET.IO!
 
     res.status(201).json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// --- Rota: deletar combinação (ADMIN) ---
+app.delete("/combinacoes/:id", async (req, res) => {
+  const { adminPassword } = req.body;
+  const { id } = req.params;
+
+  if (adminPassword !== ADMIN_PASSWORD) {
+    return res.status(401).send("Senha de admin inválida");
+  }
+
+  try {
+    await db.run("DELETE FROM combinacoes WHERE id = ?", [id]);
+
+    // Atualiza todos os clientes
+    const lista = await db.all("SELECT * FROM combinacoes ORDER BY id DESC");
+    io.emit("update", lista);
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// --- Rota: editar combinação (ADMIN) ---
+app.put("/combinacoes/:id", async (req, res) => {
+  const { adminPassword, nome, n1, n2, n3 } = req.body;
+  const { id } = req.params;
+
+  if (adminPassword !== ADMIN_PASSWORD) {
+    return res.status(401).send("Senha de admin inválida");
+  }
+
+  try {
+    const nomeFormatado = toTitleCase(nome.trim());
+    await db.run(
+      "UPDATE combinacoes SET nome = ?, n1 = ?, n2 = ?, n3 = ? WHERE id = ?",
+      [nomeFormatado, n1, n2, n3, id]
+    );
+
+    // Atualiza todos os clientes
+    const lista = await db.all("SELECT * FROM combinacoes ORDER BY id DESC");
+    io.emit("update", lista);
+    res.json({ success: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

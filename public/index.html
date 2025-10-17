@@ -4,7 +4,6 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Lista de Combinações</title>
-
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 
     <style>
@@ -32,7 +31,7 @@
         box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
       }
       #nome {
-        grid-column: 1 / -1; /* Ocupa a linha inteira */
+        grid-column: 1 / -1;
       }
       input,
       button {
@@ -40,10 +39,11 @@
         font-size: 16px;
         border: 1px solid #ddd;
         border-radius: 4px;
+        /* Adicionado para os inputs de número não diminuirem */
+        min-width: 0;
       }
-      /* Botão Salvar (Azul) */
       button[type="submit"] {
-        grid-column: 1 / -1; /* Ocupa a linha inteira */
+        grid-column: 1 / -1;
         background: #007aff;
         color: white;
         font-weight: bold;
@@ -53,8 +53,6 @@
       button[type="submit"]:hover {
         background: #0056b3;
       }
-
-      /* (Botão Copiar - Verde) */
       #copyButton {
         display: block;
         width: 100%;
@@ -62,16 +60,15 @@
         font-size: 16px;
         border: none;
         border-radius: 4px;
-        background: #28a745; /* Um tom de verde */
+        background: #28a745;
         color: white;
         font-weight: bold;
         cursor: pointer;
-        margin-bottom: 20px; /* Espaço antes da lista */
+        margin-bottom: 20px;
       }
       #copyButton:hover {
         background: #218838;
       }
-
       ul {
         list-style: none;
         padding: 0;
@@ -84,7 +81,10 @@
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
         display: flex;
         justify-content: space-between;
+        align-items: center;
         font-size: 1.1em;
+        /* Quebra de linha para nomes muito longos */
+        word-break: break-word;
       }
       li strong {
         color: #007aff;
@@ -93,7 +93,90 @@
         font-family: monospace, monospace;
         font-size: 1.2em;
         font-weight: bold;
+        padding-left: 10px; /* Garante um espaço */
       }
+      .admin-buttons {
+        display: flex;
+        gap: 8px;
+        padding-left: 10px; /* Garante um espaço */
+      }
+      .admin-btn {
+        background: none;
+        border: none;
+        cursor: pointer;
+        font-size: 18px;
+        padding: 5px;
+      }
+      .edit-btn {
+        color: #ffc107;
+      }
+      .delete-btn {
+        color: #dc3545;
+      }
+
+      .modal {
+        display: none;
+        position: fixed;
+        z-index: 1;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        overflow: auto;
+        background-color: rgba(0, 0, 0, 0.4);
+      }
+      .modal-content {
+        background-color: #fefefe;
+        margin: 15% auto;
+        padding: 20px;
+        border: 1px solid #888;
+        border-radius: 8px;
+        width: 80%;
+        max-width: 500px;
+      }
+      #editForm {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 10px;
+      }
+      #editNome {
+        grid-column: 1 / -1;
+      }
+      #saveEditButton {
+        grid-column: 1 / -1;
+      }
+      #closeModalButton {
+        background-color: #aaa;
+        grid-column: 1 / -1;
+      }
+
+      /* --- NOVO CSS (Responsivo para Celular) --- */
+      @media (max-width: 500px) {
+        body {
+          /* Remove a margem e padding laterais */
+          margin: 0;
+          padding: 10px;
+        }
+
+        /* Muda os formulários para 1 coluna */
+        form,
+        #editForm {
+          grid-template-columns: 1fr;
+        }
+
+        li {
+          /* Permite que o item da lista quebre a linha */
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 10px;
+        }
+
+        .admin-buttons {
+          /* Coloca os botões de admin no final */
+          align-self: flex-end;
+        }
+      }
+      /* --- FIM DO NOVO CSS --- */
     </style>
   </head>
   <body>
@@ -108,37 +191,88 @@
     </form>
 
     <button id="copyButton">Copiar Lista</button>
-
     <ul id="lista"></ul>
 
+    <div id="editModal" class="modal">
+      <div class="modal-content">
+        <h2>Editar Combinação</h2>
+        <form id="editForm">
+          <input type="hidden" id="editId" />
+          <input type="text" id="editNome" placeholder="Seu nome" required />
+          <input
+            type="number"
+            id="editN1"
+            min="1"
+            max="60"
+            placeholder="N1"
+            required
+          />
+          <input
+            type="number"
+            id="editN2"
+            min="1"
+            max="60"
+            placeholder="N2"
+            required
+          />
+          <input
+            type="number"
+            id="editN3"
+            min="1"
+            max="60"
+            placeholder="N3"
+            required
+          />
+          <button type="submit" id="saveEditButton">Salvar Mudanças</button>
+          <button type="button" id="closeModalButton">Cancelar</button>
+        </form>
+      </div>
+    </div>
+
     <script>
-      // ATENÇÃO: Se você já subiu pro Railway,
-      // lembre-se de usar a sua URL aqui:
-      // const backendURL = "https://seu-app.up.railway.app";
-      const backendURL = "https://meu-novo-projeto-production.up.railway.app";
+      // Lembre de trocar pela sua URL do Railway
+      const backendURL = "http://localhost:3000";
 
-      // --- PARTE A: Conexão em Tempo Real (Socket.io) ---
-      let dadosAtuais = []; // Guarda a lista mais recente aqui
-
+      let dadosAtuais = [];
       const socket = io(backendURL);
       const listaEl = document.getElementById("lista");
+      const formEl = document.getElementById("form");
+      const copyButton = document.getElementById("copyButton");
 
+      const editModal = document.getElementById("editModal");
+      const editForm = document.getElementById("editForm");
+      const closeModalButton = document.getElementById("closeModalButton");
+
+      // --- PARTE A: Receber dados (Socket.io) ---
       socket.on("update", (dados) => {
-        console.log("Recebemos uma atualização!", dados);
-        dadosAtuais = dados; // Salva os dados recebidos
+        dadosAtuais = dados;
         listaEl.innerHTML = "";
+
         dados.forEach((item) => {
           const li = document.createElement("li");
+
+          li.dataset.id = item.id;
+          li.dataset.nome = item.nome;
+          li.dataset.n1 = item.n1;
+          li.dataset.n2 = item.n2;
+          li.dataset.n3 = item.n3;
+
           li.innerHTML = `
-            <strong>${item.nome}</strong> 
-            <span>${item.n1}, ${item.n2}, ${item.n3}</span>
+            <div>
+              <strong>${item.nome}</strong> 
+              <br>
+              <span>${item.n1}, ${item.n2}, ${item.n3}</span>
+            </div>
+            <div class="admin-buttons">
+              <button class="admin-btn edit-btn">✏️</button>
+              <button class="admin-btn delete-btn">❌</button>
+            </div>
           `;
           listaEl.appendChild(li);
         });
       });
 
-      // --- PARTE B: Envio do Formulário (Fetch) ---
-      const formEl = document.getElementById("form");
+      // --- PARTE B: Envio de Formulário (POST) ---
       formEl.addEventListener("submit", async (e) => {
         e.preventDefault();
         const nome = document.getElementById("nome").value;
@@ -151,13 +285,10 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ nome, n1, n2, n3 }),
         });
-
         formEl.reset();
       });
 
-      // --- JAVASCRIPT DE COPIAR (VERSÃO ALINHADA COM TAB) ---
-      const copyButton = document.getElementById("copyButton");
-
+      // --- PARTE C: Lógica de Copiar ---
       copyButton.addEventListener("click", () => {
         if (dadosAtuais.length === 0) {
           copyButton.innerText = "Lista vazia!";
@@ -165,32 +296,110 @@
           return;
         }
 
-        // 1. Define o Título
-        const titulo = "Brincadeira das Falhas\n\n";
+        // --- TÍTULO E DESCRIÇÃO ATUALIZADOS ---
+        const titulo = `(◞ꈍ∇ꈍ)っ🎁 𝙱𝚁𝙸𝙽𝙲𝙰𝙳𝙴𝙸𝚁𝙰𝚂 𝙳𝙰𝚂 𝙵𝙰𝙻𝙷𝙰𝚂 (❛0❛⋆)
 
-        // 2. Formata a lista (usando \t (Tab) para alinhamento)
+🎯𝐀𝐜𝐞𝐫𝐭𝐞 𝟑 𝐝𝐞𝐳𝐞𝐧𝐚𝐬 𝐪𝐮𝐞 𝐧ã𝐨 𝐢𝐫ã𝐨 𝐯𝐢𝐦 𝐧𝐚 𝐥𝐨𝐭𝐨𝐟𝐚𝐜𝐢𝐥 𝐡𝐨𝐣𝐞 𝟑𝟓𝟏𝟓
+
+🎁𝐆𝐀𝐍𝐇𝐀 𝟏𝟎𝟎 𝐁𝐈𝐋𝐇𝐄𝐓𝐄𝐒 𝐃𝐀 𝐑𝐈𝐅𝐀 𝐄 𝐌𝐀𝐈𝐒 𝟒 𝐏𝐈𝐗 𝐏𝐄𝐋𝐀 𝐋𝐎𝐓𝐄𝐑𝐈𝐀 𝐅𝐄𝐃𝐄𝐑𝐀𝐋
+
+`;
+        // --- FIM DA ATUALIZAÇÃO ---
+
         const listaFormatada = dadosAtuais
-          .map((item) => {
-            // Simplesmente separamos o nome e os números com um Tab
-            return `${item.nome}:\t${item.n1}, ${item.n2}, ${item.n3}`;
-          })
-          .join("\n"); // Junta cada item com uma quebra de linha
+          .map((item) => `${item.nome}:\t${item.n1}, ${item.n2}, ${item.n3}`)
+          .join("\n");
 
-        const textoParaCopiar = titulo + listaFormatada;
+        navigator.clipboard.writeText(titulo + listaFormatada).then(() => {
+          copyButton.innerText = "Copiado! 👍";
+          setTimeout(() => {
+            copyButton.innerText = "Copiar Lista";
+          }, 2000);
+        });
+      });
 
-        // 3. Copia para a área de transferência
-        navigator.clipboard
-          .writeText(textoParaCopiar)
-          .then(() => {
-            copyButton.innerText = "Copiado! 👍";
-            setTimeout(() => {
-              copyButton.innerText = "Copiar Lista";
-            }, 2000);
-          })
-          .catch((err) => {
-            console.error("Falha ao copiar texto: ", err);
-            copyButton.innerText = "Erro ao copiar";
+      // --- PARTE D: LÓGICA DE ADMIN (EDITAR E DELETAR) ---
+      function getAdminPassword() {
+        return prompt("Digite a senha de Admin:");
+      }
+
+      listaEl.addEventListener("click", async (e) => {
+        const target = e.target;
+        const li = target.closest("li");
+        if (!li) return;
+
+        const id = li.dataset.id;
+
+        // Deletar
+        if (target.classList.contains("delete-btn")) {
+          if (!confirm(`Tem certeza que quer deletar "${li.dataset.nome}"?`)) {
+            return;
+          }
+          const password = getAdminPassword();
+          if (!password) return;
+
+          try {
+            const res = await fetch(`${backendURL}/combinacoes/${id}`, {
+              method: "DELETE",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ adminPassword: password }),
+            });
+            if (!res.ok) alert("Senha incorreta ou erro no servidor.");
+          } catch (err) {
+            alert("Erro ao deletar.");
+          }
+        }
+
+        // Editar (Abrir Modal)
+        if (target.classList.contains("edit-btn")) {
+          document.getElementById("editId").value = id;
+          document.getElementById("editNome").value = li.dataset.nome;
+          document.getElementById("editN1").value = li.dataset.n1;
+          document.getElementById("editN2").value = li.dataset.n2;
+          document.getElementById("editN3").value = li.dataset.n3;
+          editModal.style.display = "block";
+        }
+      });
+
+      // Fechar Modal
+      closeModalButton.addEventListener("click", () => {
+        editModal.style.display = "none";
+      });
+      window.addEventListener("click", (e) => {
+        if (e.target == editModal) {
+          editModal.style.display = "none";
+        }
+      });
+
+      // Salvar Edição
+      editForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const password = getAdminPassword();
+        if (!password) return;
+
+        const id = document.getElementById("editId").value;
+        const dados = {
+          nome: document.getElementById("editNome").value,
+          n1: document.getElementById("editN1").value,
+          n2: document.getElementById("editN2").value,
+          n3: document.getElementById("editN3").value,
+          adminPassword: password,
+        };
+
+        try {
+          const res = await fetch(`${backendURL}/combinacoes/${id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(dados),
           });
+          if (!res.ok) {
+            alert("Senha incorreta ou erro ao salvar.");
+          } else {
+            editModal.style.display = "none";
+          }
+        } catch (err) {
+          alert("Erro ao salvar.");
+        }
       });
     </script>
   </body>

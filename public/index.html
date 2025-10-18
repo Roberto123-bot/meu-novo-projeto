@@ -21,7 +21,7 @@
         color: #4a4a4a;
       }
 
-      /* --- NOVO CSS (Status) --- */
+      /* --- CSS (Status) --- */
       #statusDisplay {
         text-align: center;
         font-size: 1.5em;
@@ -38,7 +38,6 @@
         color: #c82333;
         background-color: #f8d7da;
       }
-      /* --- FIM DO NOVO CSS --- */
 
       form {
         display: grid;
@@ -87,7 +86,6 @@
         color: white;
       }
 
-      /* --- NOVO CSS (Botão Status) --- */
       #toggleButton {
         background: #ffc107; /* Amarelo */
         color: #212529; /* Texto escuro */
@@ -117,7 +115,6 @@
         font-weight: bold;
         cursor: pointer;
       }
-      /* --- FIM DO NOVO CSS --- */
 
       ul {
         list-style: none;
@@ -216,8 +213,6 @@
         .admin-buttons {
           align-self: flex-end;
         }
-
-        /* Ajusta botões admin para 1 coluna no celular */
         .admin-button-group {
           grid-template-columns: 1fr;
         }
@@ -226,6 +221,8 @@
   </head>
   <body>
     <h1>💡 Lista de Combinações</h1>
+
+    <div id="statusDisplay"></div>
 
     <form id="form">
       <input type="text" id="nome" placeholder="Seu nome" required />
@@ -248,11 +245,12 @@
         <form id="editForm">
           <input type="hidden" id="editId" />
           <input type="text" id="editNome" placeholder="Seu nome" required />
+
           <input
             type="number"
             id="editN1"
             min="1"
-            max="60"
+            max="25"
             placeholder="N1"
             required
           />
@@ -260,7 +258,7 @@
             type="number"
             id="editN2"
             min="1"
-            max="60"
+            max="25"
             placeholder="N2"
             required
           />
@@ -268,7 +266,7 @@
             type="number"
             id="editN3"
             min="1"
-            max="60"
+            max="25"
             placeholder="N3"
             required
           />
@@ -279,46 +277,43 @@
     </div>
 
     <script>
-      const backendURL = "https://meu-novo-projeto-production.up.railway.app"; // Lembre de trocar
+      const backendURL = "http://localhost:3000";
 
       let dadosAtuais = [];
-      let currentStatus = "open"; // --- NOVA VARIÁVEL JS (Estado)
+      let currentStatus = "open";
 
       const socket = io(backendURL);
       const listaEl = document.getElementById("lista");
       const formEl = document.getElementById("form");
       const copyButton = document.getElementById("copyButton");
       const clearButton = document.getElementById("clearButton");
-      const statusDisplay = document.getElementById("statusDisplay"); // --- NOVA
-      const toggleButton = document.getElementById("toggleButton"); // --- NOVA
+      const statusDisplay = document.getElementById("statusDisplay");
+      const toggleButton = document.getElementById("toggleButton");
 
       const editModal = document.getElementById("editModal");
       const editForm = document.getElementById("editForm");
       const closeModalButton = document.getElementById("closeModalButton");
 
-      // --- NOVO LISTENER (Socket.io de Status) ---
+      // --- LISTENER (Socket.io de Status) ---
       socket.on("statusUpdate", (status) => {
         console.log("Novo status recebido:", status);
-        currentStatus = status; // Salva o estado atual
+        currentStatus = status;
         if (status === "open") {
           statusDisplay.innerText = "LISTA ABERTA ✅";
           statusDisplay.className = "status-open";
-          // Reabilita o formulário
           formEl.querySelector("button").disabled = false;
           formEl.querySelector("button").innerText = "Salvar";
         } else {
           statusDisplay.innerText = "LISTA FECHADA ❌";
           statusDisplay.className = "status-closed";
-          // Desabilita o formulário
           formEl.querySelector("button").disabled = true;
           formEl.querySelector("button").innerText = "Lista Fechada";
         }
       });
-      // --- FIM DO NOVO LISTENER ---
 
       // --- PARTE A: Receber dados (Socket.io) ---
       socket.on("update", (dados) => {
-        dados.reverse(); // <<<--- ADICIONE ESTA LINHA
+        dados.reverse(); // Inverte para mais antigo primeiro
 
         dadosAtuais = dados;
         listaEl.innerHTML = "";
@@ -351,12 +346,10 @@
       formEl.addEventListener("submit", async (e) => {
         e.preventDefault();
 
-        // --- VERIFICAÇÃO DE STATUS (Dupla checagem) ---
         if (currentStatus === "closed") {
           alert("A lista de combinações está FECHADA no momento.");
-          return; // Para a execução
+          return;
         }
-        // --- FIM DA VERIFICAÇÃO ---
 
         const nome = document.getElementById("nome").value;
         const n1 = document.getElementById("n1").value;
@@ -371,7 +364,6 @@
           });
 
           if (!res.ok) {
-            // Se o servidor recusar (lista fechada), avisa o usuário
             const errorData = await res.json();
             alert(errorData.error || "Não foi possível salvar.");
           } else {
@@ -390,7 +382,7 @@
           return;
         }
 
-        const titulo = `(◞ꈍ∇ꈍ)っ🎁 𝙱𝚁𝙸𝙽𝙲𝙰𝙳𝙴𝙸𝚁𝙰𝚂 𝙳𝙰𝚂 𝙵𝙰𝙻𝙷𝙰𝚂 (❛0❛⋆)
+        const titulo = `(◞ꈍ∇ꈍ)っ🎁 𝙱𝚁𝙸𝙽𝙲𝙰𝙳𝙴𝙸𝚁𝙰𝚂 𝙳𝙰𝚂 𝙵𝙰LH𝙰𝚂 (❛0❛⋆)
 
 🎯𝐀𝐜𝐞𝐫𝐭𝐞 𝟑 𝐝𝐞𝐳𝐞𝐧𝐚𝐬 𝐪𝐮𝐞 𝐧ã𝐨 𝐢𝐫ã𝐨 𝐯𝐢𝐦 𝐧𝐚 𝐥𝐨𝐭𝐨𝐟𝐚𝐜𝐢𝐥 𝐡𝐨𝐣𝐞 𝟑𝟓𝟏𝟓
 
@@ -398,16 +390,12 @@
 
 `;
 
-        // --- MUDANÇA DA FORMATAÇÃO DA LISTA ---
         const listaFormatada = dadosAtuais
           .map((item, index) => {
-            // "index" começa em 0, então adicionamos 1
             const numero = index + 1;
-            // Adicionamos o número e um ponto antes do nome
             return `${numero}. ${item.nome}:\t${item.n1}, ${item.n2}, ${item.n3}`;
           })
           .join("\n");
-        // --- FIM DA MUDANÇA ---
 
         navigator.clipboard.writeText(titulo + listaFormatada).then(() => {
           copyButton.innerText = "Copiado! 👍";
@@ -501,9 +489,8 @@
         }
       });
 
-      // --- NOVA LÓGICA JS (Limpar Lista) ---
+      // --- LÓGICA JS (Limpar Lista) ---
       clearButton.addEventListener("click", async () => {
-        // 1. Confirmação Dupla (MUITO IMPORTANTE)
         if (!confirm("TEM CERTEZA que quer deletar TODA a lista?")) {
           return;
         }
@@ -511,11 +498,9 @@
           return;
         }
 
-        // 2. Pede a senha
-        const password = getAdminPassword(); // Reusa a função
+        const password = getAdminPassword();
         if (!password) return;
 
-        // 3. Envia a requisição
         try {
           const res = await fetch(`${backendURL}/combinacoes/all`, {
             method: "DELETE",
@@ -526,14 +511,12 @@
           if (!res.ok) {
             alert("Senha incorreta ou erro no servidor.");
           }
-          // Se der certo, o socket.io vai atualizar a lista
-          // para todos automaticamente (não precisamos fazer nada aqui).
         } catch (err) {
           alert("Erro ao limpar a lista.");
         }
       });
 
-      // --- NOVA LÓGICA JS (Alternar Status) ---
+      // --- LÓGICA JS (Alternar Status) ---
       toggleButton.addEventListener("click", async () => {
         const password = getAdminPassword();
         if (!password) return;
@@ -547,13 +530,10 @@
           if (!res.ok) {
             alert("Senha incorreta ou erro no servidor.");
           }
-          // Se der certo, o socket.io vai atualizar o status
-          // para todos automaticamente.
         } catch (err) {
           alert("Erro ao alternar status.");
         }
       });
-      // --- FIM DA NOVA LÓGICA ---
     </script>
   </body>
 </html>
